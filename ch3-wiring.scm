@@ -224,3 +224,4 @@
 (probe 'sum sum)
 (probe 'carry carry)
 (half-adder input-1 input-2 sum carry)
+
