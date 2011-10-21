@@ -1,3 +1,5 @@
+#lang r5rs
+
 ;;;;REGISTER-MACHINE SIMULATOR FROM SECTION 5.2 OF
 ;;;; STRUCTURE AND INTERPRETATION OF COMPUTER PROGRAMS
 
@@ -12,6 +14,16 @@
 ;;; Also, comment in/out the print-stack-statistics op in make-new-machine
 ;;; To find this stack code below, look for comments with **
 
+(define true #t)
+(define false #f)
+
+(define (error s val)
+  (newline)
+  (display "Error: ")
+  (display s)
+  (newline)
+  (display "Value: ")
+  (display val))
 
 (define (make-machine register-names ops controller-text)
   (let ((machine (make-new-machine)))
@@ -67,43 +79,43 @@
 (define (push stack value)
   ((stack 'push) value))
 
-;;**monitored version from section 5.2.4
-(define (make-stack)
-  (let ((s '())
-        (number-pushes 0)
-        (max-depth 0)
-        (current-depth 0))
-    (define (push x)
-      (set! s (cons x s))
-      (set! number-pushes (+ 1 number-pushes))
-      (set! current-depth (+ 1 current-depth))
-      (set! max-depth (max current-depth max-depth)))
-    (define (pop)
-      (if (null? s)
-          (error "Empty stack -- POP")
-          (let ((top (car s)))
-            (set! s (cdr s))
-            (set! current-depth (- current-depth 1))
-            top)))    
-    (define (initialize)
-      (set! s '())
-      (set! number-pushes 0)
-      (set! max-depth 0)
-      (set! current-depth 0)
-      'done)
-    (define (print-statistics)
-      (newline)
-      (display (list 'total-pushes  '= number-pushes
-                     'maximum-depth '= max-depth)))
-    (define (dispatch message)
-      (cond ((eq? message 'push) push)
-            ((eq? message 'pop) (pop))
-            ((eq? message 'initialize) (initialize))
-            ((eq? message 'print-statistics)
-             (print-statistics))
-            (else
-             (error "Unknown request -- STACK" message))))
-    dispatch))
+;;;**monitored version from section 5.2.4
+;(define (make-stack)
+;  (let ((s '())
+;        (number-pushes 0)
+;        (max-depth 0)
+;        (current-depth 0))
+;    (define (push x)
+;      (set! s (cons x s))
+;      (set! number-pushes (+ 1 number-pushes))
+;      (set! current-depth (+ 1 current-depth))
+;      (set! max-depth (max current-depth max-depth)))
+;    (define (pop)
+;      (if (null? s)
+;          (error "Empty stack -- POP")
+;          (let ((top (car s)))
+;            (set! s (cdr s))
+;            (set! current-depth (- current-depth 1))
+;            top)))    
+;    (define (initialize)
+;      (set! s '())
+;      (set! number-pushes 0)
+;      (set! max-depth 0)
+;      (set! current-depth 0)
+;      'done)
+;    (define (print-statistics)
+;      (newline)
+;      (display (list 'total-pushes  '= number-pushes
+;                     'maximum-depth '= max-depth)))
+;    (define (dispatch message)
+;      (cond ((eq? message 'push) push)
+;            ((eq? message 'pop) (pop))
+;            ((eq? message 'initialize) (initialize))
+;            ((eq? message 'print-statistics)
+;             (print-statistics))
+;            (else
+;             (error "Unknown request -- STACK" message))))
+;    dispatch))
 
 (define (make-new-machine)
   (let ((pc (make-register 'pc))
@@ -181,9 +193,11 @@
          (let ((next-inst (car text)))
            (if (symbol? next-inst)
                (receive insts
-                        (cons (make-label-entry next-inst
+                        (if (not (label-exists labels next-inst))
+                            (cons (make-label-entry next-inst
                                                 insts)
-                              labels))
+                              labels)
+                            (error "Can't reuse label - EXTRACT-LABELS" text)))
                (receive (cons (make-instruction next-inst)
                               insts)
                         labels)))))))
@@ -223,6 +237,11 @@
         (cdr val)
         (error "Undefined label -- ASSEMBLE" label-name))))
 
+(define (label-exists labels label-name)
+  (let ((val (assoc label-name labels)))
+    (if val
+        true
+        false)))
 
 (define (make-execution-procedure inst labels machine
                                   pc flag stack ops)
@@ -405,3 +424,59 @@
       false))
 
 '(REGISTER SIMULATOR LOADED)
+
+(define expt-machine
+  (make-machine
+   '(n continue b val)
+   (list (list '= =) (list '- -) (list '* *))
+     '(controller
+       (assign continue (label expt-done))
+       expt-loop
+         (test (op =) (reg n) (const 0))
+         (branch (label base-case))
+         (save continue)
+         (assign n (op -) (reg n) (const 1))
+         (assign continue (label after-expt))
+         (goto (label expt-loop))
+       after-expt
+         (assign val (op *) (reg b) (reg val))
+         (restore continue)
+         (goto (reg continue))
+       base-case
+         (assign val (const 1))
+         (goto (reg continue))
+       expt-done)))
+
+(define sqrt-machine
+  (make-machine
+   '(g sq x ab q a d v av)
+   (list (list 'square (lambda (x) (* x x))) 
+         (list '- -)
+         (list '< <)
+         (list '/ /)
+         (list 'average (lambda (x y) (/ (+ x y) 2)))
+         (list 'abs abs))
+   '(controller
+     test-g
+       (assign sq (op square) (reg g))
+       (assign d (op -) (reg sq) (reg x))
+       (assign ab (op abs) (reg d))
+       (test (op <) (reg ab) (const 0.001))
+       (branch (label done))
+       (assign q (op /) (reg x) (reg g))
+       (assign av (op average) (reg g) (reg q))
+       (assign g (reg av))
+       (goto (label test-g))
+     done)))
+
+(define crazy-machine
+  (make-machine
+   '(a)
+   '()
+   '(controller
+      start
+        (goto (label here))
+      here
+        (assign a (const 3))
+        (goto (label there))
+      there)))
