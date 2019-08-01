@@ -137,7 +137,7 @@
 (define (h n) (A 2 n))
 ; => (A 1 (A 2 (- n 1))
 ; => (g (h (- n 1))
-; 2 ^ n ^ n 
+; 2 ^ n ^ n
 ; (h 1) => 2 (2^1)
 ; (h 2) => 4 (2^2)
 ; (h 3) => 16 (2^4)
@@ -154,7 +154,7 @@
 ; f(n) = f(n - 1) + 2f(n - 2) + 3f(n - 3) if n >= 3
 
 ; f also equals
-; 
+;
 
 (define (exercise1-11-recursive n)
   (if (< n 3)
@@ -231,3 +231,135 @@
         ((= i n) (+ (pascal (- n r)) (pascal (- n (- r 1))))) ; The main clause. If we're at n, and we're within a row, do (pascal (- n r-len)) (pascal (- n r-len 1))
         ((= i-in-row (- r 1)) (pascal-iter (+ i 1) 0 (+ r 1) n)) ; If we're at the end of a row, reset our state and increase the row length by 1
         (else (pascal-iter (+ i 1) (+ i-in-row 1) r n)))) ; Continue iterating through the row
+
+; Exercise 1.14
+(define (count-change amount)
+  (cc amount 5))
+(define (cc amount kinds-of-coins)
+  (cond ((= amount 0) 1)
+        ((or (< amount 0) (= kinds-of-coins 0)) 0)
+        (else (+ (cc amount
+                     (- kinds-of-coins 1))
+                 (cc (- amount
+                        (first-denomination kinds-of-coins))
+                     kinds-of-coins)))))
+(define (first-denomination kinds-of-coins)
+  (cond ((= kinds-of-coins 1) 1)
+        ((= kinds-of-coins 2) 5)
+        ((= kinds-of-coins 3) 10)
+        ((= kinds-of-coins 4) 25)
+        ((= kinds-of-coins 5) 50)))
+
+; (count-change 11)
+; (cc 11 5)
+; (+ (cc 11 4) (cc -39 5))
+; (+ (cc 11 4) 0)
+; (cc 11 4)
+; (+ (cc 11 3) (cc (- 11 25) 4)
+; (cc 11 3)
+; (+ (cc 11 2) (cc (- 11 10) 3))
+; (+ (cc 11 2) (cc 1 3))
+; (+ (cc 11 2) (+ (cc 1 2) (cc (- 1 10) 3))
+; (+ (cc 11 2) (cc 1 2))
+; (+ (cc 11 2) (+ (cc 1 1) (cc -3 2))
+; (+ (cc 11 2) (cc 1 1))
+; (+ (cc 11 2) (+ (cc 1 0) (cc 0 1))
+; (+ (cc 11 2) (+ 0 1))
+; (+ (cc 11 2) 1)
+; (+ (+ (cc 11 1) (cc 6 2) 1)
+; (+ (+ (cc 11 1) (+ (cc 6 1) (cc 1 2)) 1)
+; (+ (+ (cc 11 1) (+ (cc 6 1) (+ (cc 1 1) (cc -4 2))) 1)
+; (+ (+ (cc 11 1) (+ (cc 6 1) (cc 1 1)) 1)
+; (+ (+ (cc 11 1) (+ (cc 6 1) (+ (cc 1 0) (cc 0 1))) 1)
+; (+ (+ (cc 11 1) (+ (cc 6 1) 1) 1)
+; (+ (+ (cc 11 1) (+ (+ (cc 6 0) (cc 5 1)) 1) 1))
+; (+ (+ (cc 11 1) (+ (cc 5 1)) 1) 1))
+; (+ (cc 11 1) (+ (cc 5 0) (cc 4 1)) 1 1)
+; (+ (cc 11 1) 1 1 1)
+; (+ 1 1 1 1)
+; 4
+
+; Exercise 1.15
+
+(define (cube x) (* x x x))
+(define (p x) (- (* 3 x) (* 4 (cube x))))
+(define (sine angle)
+   (if (not (> (abs angle) 0.1))
+       angle
+       (p (sine (/ angle 3.0)))))
+
+; (sine 12.15)
+; (p (sine 4.05))
+; (- (* 3 (sine 4.05) (* 4 (cube (sine 4.05)))))
+; => (sine 4.05)
+; (p (sine 1.349999999)
+; (- (* 3 (sine 1.34999999) (* 4 (cube (sine 1.349999))
+; Basically just keep diving by 3.
+; => .44999996666
+; => 0.149999999988888
+; one more. So, 4 times? Maybe 5?
+
+; 1.15b: log3(a)? something like that
+
+; Exercise 1.16
+
+(define (fast-expt b n)
+  (cond ((= n 0) 1)
+        ((even? n) (square (fast-expt b (/ n 2))))
+        (else (* b (fast-expt b (- n 1))))))
+
+; invariant: a * b^n is unchanged
+(define (fast-expt-iter b n a)
+  (cond ((= n 0) a) ; b^n = 0, so return a
+        ((= n 1) (* b a))
+        ((even? n) (fast-expt-iter (square b) (/ n 2) a))
+        (else (fast-expt-iter b (- n 1) (* a b)))))
+
+; Exercise 1.17
+
+(define (mult a b)
+  (if (= b 0)
+      0
+      (+ a (mult a (- b 1)))))
+
+(define (double x)
+  (+ x x))
+
+(define (halve x)
+  (/ x 2))
+
+(define (fast-mult a b)
+  (cond ((= a 0) 0)
+        ((= a 1) b)
+        ((even? a) (fast-mult (halve a) (double b)))
+        (else (+ b (fast-mult (- a 1) b)))))
+
+; Exercise 1.18
+
+(define (fast-mult-iter a b x)
+  (cond ((= a 0) x)
+        ((even? a) (fast-mult-iter (halve a) (double b) x)) ; ab+x is invariant
+        (else (fast-mult-iter (- a 1) b (+ x b))))) ; ab+x is invariant
+
+; (fast-mult-iter 2 5 0)
+; (fast-mult-iter 1 10 0)
+; (fast-mult-iter 0 10 10)
+; (+ 5 10)
+
+; Exercise 1.19
+
+(define (fib n)
+  (fib-iter 1 0 0 1 n))
+(define (fib-iter a b p q count)
+  (cond ((= count 0) b)
+        ((even? count)
+         (fib-iter a
+                   b
+                   <??>      ; compute p'
+                   <??>      ; compute q'
+                   (/ count 2)))
+        (else (fib-iter (+ (* b q) (* a q) (* a p))
+                        (+ (* b p) (* a q))
+                        p
+                        q
+                        (- count 1)))))
